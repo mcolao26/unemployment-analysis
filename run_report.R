@@ -1,4 +1,4 @@
-setwd("/Users/mattcolao/Documents/unemployment-anaylsis")  
+setwd("/Users/mattcolao/Documents/unemployment-analysis") 
 readRenviron(".Renviron")
 
 library(rmarkdown)
@@ -17,22 +17,20 @@ tryCatch(
         month = format(Sys.Date(), "%B %Y")
       )
     )
-    
+    system("eval $(ssh-agent -s)")          # Start SSH agent
+    system("ssh-add ~/.ssh/id_ed25519")     # Add your SSH key
+   
     repo <- repository(".")
-    add(repo, "NJ_UnemploymentRate.Rmd") 
+    add(repo, ".")
     commit(repo, message = paste("Automated report update:", Sys.Date()))
     
-    push(
-      repo,
-      credentials = cred_user_pass(
-        "mcolao26",  
-        Sys.getenv("GITHUB_PAT")
-      )
-    )
+    # Push and capture output
+    push_result <- push(repo)
+    print(push_result)  # Log the push resul
     
-    writeLines(paste(Sys.time(), "Success"), "automation.log", append = TRUE)
+    cat(paste(Sys.time(), "Success\n"), file = "automation.log", append = TRUE)
   },
   error = function(e) {
-    writeLines(paste(Sys.time(), "ERROR:", e$message), "automation.log", append = TRUE)
+    cat(paste(Sys.time(), "ERROR:", e$message, "\n"), file = "automation.log", append = TRUE)
   }
 )

@@ -20,17 +20,18 @@ Please summarize your observations of the time series plot.
 library(fredr)
 library(fpp2)
 library(ggplot2)
+library(dplyr)
 
 fredr_set_key(params$fred_api_key)
 
 ts_nj <- fredr(
   series_id = "NJURN",
   observation_start = as.Date("1976-01-01"),
-  observation_end = Sys.Date()  # Automatically gets latest data
+  observation_end = Sys.Date()
 ) |> 
   select(date, value) |> 
   na.omit() |> 
-  ts_nj <- ts(start = c(1976, 1), frequency = 12)
+  (\(x) ts(x$value, start = c(1976, 1), frequency = 12))()
 ```
 
 ```{r,echo=FALSE}

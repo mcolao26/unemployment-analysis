@@ -1,13 +1,38 @@
-rmarkdown::render(
-  "NJ_UnemploymentRate.Rmd",
-  output_file = paste0("reports/NJ_Unemployment_", Sys.Date(), ".html"),
-  params = list(
-    month = format(Sys.Date(), "%B %Y"),
-    fred_api_key = "32d8dc7cb540fef3166fd10d8fdb3ca5" 
-  )
-)
+setwd("/Users/mattcolao/Documents/unemployment-anaylsis")  
+readRenviron(".Renviron")
 
+library(rmarkdown)
 library(git2r)
-repo <- repository(".")  # Initialize Git repo in your project folder
-add(repo, "NJ_UnemploymentRate.Rmd") 
-commit(repo, message = paste("Automated report update:", Sys.Date())) 
+library(fredr)
+
+tryCatch(
+  {
+    if (!dir.exists("reports")) dir.create("reports", recursive = TRUE)
+    
+  
+    rmarkdown::render(
+      "NJ_UnemploymentRate.Rmd",
+      output_file = paste0("reports/NJ_Unemployment_", Sys.Date(), ".html"),
+      params = list(
+        month = format(Sys.Date(), "%B %Y")
+      )
+    )
+    
+    repo <- repository(".")
+    add(repo, "NJ_UnemploymentRate.Rmd") 
+    commit(repo, message = paste("Automated report update:", Sys.Date()))
+    
+    push(
+      repo,
+      credentials = cred_user_pass(
+        "mcolao26",  
+        Sys.getenv("GITHUB_PAT")
+      )
+    )
+    
+    writeLines(paste(Sys.time(), "Success"), "automation.log", append = TRUE)
+  },
+  error = function(e) {
+    writeLines(paste(Sys.time(), "ERROR:", e$message), "automation.log", append = TRUE)
+  }
+)

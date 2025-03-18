@@ -8,11 +8,9 @@ library(fredr)
 
 tryCatch(
   {
-    # Render report
-    rmarkdown::render(
-      "NJ_UnemploymentRate.Rmd",
-      output_file = paste0("reports/NJ_Unemployment_", Sys.Date(), ".html")
-    )
+    if (!dir.exists("reports")) dir.create("reports")
+    output_file <- paste0("reports/NJ_Unemployment_", Sys.Date(), ".html")
+    rmarkdown::render("NJ_UnemploymentRate.Rmd", output_file = output_file)
     
     # Git operations
     repo <- repository(".")

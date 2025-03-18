@@ -10,7 +10,9 @@ params:
 # Overview.  
 The data includes NJ unemployment rates from January 1976 to `r params$month`. This data set was retrieved from FRED (Federal Reserve Economic Data) by the Federal Reserve Bank of St. Louis, who themselves have retrieved the data from the U.S. Bureau of Labor Statistics.   
 LINK: https://fred.stlouisfed.org/series/NJURN
- 
+
+**Last Updated:** `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`
+
 # Plot and Inference.   
 Correctly import the data.    
 Show a time series plot.  

@@ -1,4 +1,6 @@
 # run_report.R
+start_time <- Sys.time()
+
 setwd("/Users/mattcolao/Documents/unemployment-analysis")
 readRenviron(".Renviron")
 
@@ -28,3 +30,12 @@ tryCatch(
 system("git add reports/NJ_Unemployment_$(date +%Y-%m-%d).html")
 system("git commit -m 'Automated update for unemployment report on $(date +%Y-%m-%d)'")
 system("git push origin main")
+end_time <- Sys.time()
+runtime <- end_time - start_time
+cat("Report generation runtime:", runtime, "\n")
+upload_start <- Sys.time()
+system("git push origin main")
+upload_end <- Sys.time()
+upload_time <- upload_end - upload_start
+cat("Upload time:", upload_time, "\n")
+

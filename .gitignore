@@ -7,7 +7,7 @@
 .Rproj.user        # RStudio project files
 
 # Reports and outputs
-reports/           # Folder containing generated HTML reports
+# reports/           # Folder containing generated HTML reports
 *.log              # Log files (e.g., automation.log)
 
 # System/OS files

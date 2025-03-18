@@ -1,0 +1,16 @@
+# .gitignore
+
+# R-specific files
+.Renviron          # Contains API keys/tokens (sensitive!)
+.RData             # R workspace files
+.Rhistory          # R command history
+.Rproj.user        # RStudio project files
+
+# Reports and outputs
+reports/           # Folder containing generated HTML reports
+*.log              # Log files (e.g., automation.log)
+
+# System/OS files
+.DS_Store          # macOS metadata file
+Thumbs.db          # Windows thumbnail cache
+

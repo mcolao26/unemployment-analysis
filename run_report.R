@@ -1,4 +1,5 @@
-setwd("/Users/mattcolao/Documents/unemployment-analysis") 
+# run_report.R
+setwd("/Users/mattcolao/Documents/unemployment-analysis")
 readRenviron(".Renviron")
 
 library(rmarkdown)
@@ -7,27 +8,23 @@ library(fredr)
 
 tryCatch(
   {
-    if (!dir.exists("reports")) dir.create("reports", recursive = TRUE)
-    
-  
+    # Render report
     rmarkdown::render(
       "NJ_UnemploymentRate.Rmd",
-      output_file = paste0("reports/NJ_Unemployment_", Sys.Date(), ".html"),
-      params = list(
-        month = format(Sys.Date(), "%B %Y")
-      )
+      output_file = paste0("reports/NJ_Unemployment_", Sys.Date(), ".html")
     )
-    system("eval $(ssh-agent -s)")          # Start SSH agent
-    system("ssh-add ~/.ssh/id_ed25519")     # Add your SSH key
-   
+    
+    # Git operations
     repo <- repository(".")
-    add(repo, ".")
+    add(repo, ".")  # Stage ALL files
     commit(repo, message = paste("Automated report update:", Sys.Date()))
     
-    # Push and capture output
-    push_result <- push(repo)
-    print(push_result)  # Log the push resul
+    # Push via SSH
+    system("eval \"$(ssh-agent -s)\"")
+    system("ssh-add ~/.ssh/id_ed25519")
+    push(repo, credentials = cred_user_pass("", ""))  # Empty strings for SSH
     
+    # Log success
     cat(paste(Sys.time(), "Success\n"), file = "automation.log", append = TRUE)
   },
   error = function(e) {

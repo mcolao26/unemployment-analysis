@@ -1,0 +1,496 @@
+---
+title: "Monthly Unemployment Report: `r params$month`"
+author: "Matthew Colao"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  month: !r format(Sys.Date(), "%B %Y") 
+  fred_api_key: "32d8dc7cb540fef3166fd10d8fdb3ca5"      
+---
+# Overview.  
+The data includes NJ unemployment rates from January 1976 to `r params$month`. This data set was retrieved from FRED (Federal Reserve Economic Data) by the Federal Reserve Bank of St. Louis, who themselves have retrieved the data from the U.S. Bureau of Labor Statistics.   
+LINK: https://fred.stlouisfed.org/series/NJURN
+ 
+# Plot and Inference.   
+Correctly import the data.    
+Show a time series plot.  
+Please summarize your observations of the time series plot.  
+
+```{r, message=FALSE}
+library(fredr)
+library(fpp2)
+library(ggplot2)
+
+fredr_set_key(params$fred_api_key)
+
+ts_nj <- fredr(
+  series_id = "NJURN",
+  observation_start = as.Date("1976-01-01"),
+  observation_end = Sys.Date()  # Automatically gets latest data
+) |> 
+  select(date, value) |> 
+  na.omit() |> 
+  ts_nj <- ts(start = c(1976, 1), frequency = 12)
+```
+
+```{r,echo=FALSE}
+autoplot(ts_nj) +
+  ggtitle('NJ Unemployment Rate (Non-Seasonally Adjusted)') +
+  xlab('Year') +
+  ylab('Unemployment Rate (%)') +
+  theme_minimal(base_size = 14) +
+  geom_line(color = '#1f77b4', linewidth = .5)   
+```
+
+This plot shows the NJ unemployment rate trends from 1976 to 2024 with monthly periodicity. The data seems to be cyclical, proven by the many peaks in unemployment rate due to the 1980s double dip recession, 2008 housing crisis, and the 2020 Covid-19 pandemic.
+
+# Central Tendency.  
+What are the min, max, mean, median, 1st, and 3rd Quartile values of the times series?  
+Show the box plot.  
+Can you summarize your observation about the time series from the summary stats and box plot? 
+```{r}
+summary(ts_nj)
+boxplot(ts_nj)
+```
+
+The boxplot showcases the summary but also labels some outliers like the ones in the range of 13% - 16%, representing the more drastic events such as the 2020 Covid-19 pandemic.
+
+# Decomposition.  
+ Plot the decomposition of the time series.  
+Is the time series seasonal?  
+Is the decomposition additive or multiplicative?  
+If seasonal, what are the values of the seasonal monthly indices?  
+For which month is the time series value high, and for which month is it low?  
+Can you think of the reason behind the high and low values in those months?  
+Show the plot for time series adjusted for seasonality. Overlay this with the line for actuals? Does seasonality have big fluctuations in the value of time series? 
+
+```{r, echo=FALSE}
+decomp_nj <- stl(ts_nj, s.window = 'periodic')
+plot(decomp_nj, main = 'Decomposition Model of Unemployment Rate')
+```
+
+The time series is seasonal, as indicated by the seasonal section in the decomposition model, with the range of monthly indices being [-0.4. 0.4].
+
+```{r, message=FALSE}
+decompose_nj <- decompose(ts_nj)
+```
+
+```{r}
+decompose_nj$type
+```
+
+```{r,echo=FALSE}
+seasonal <- decompose_nj$seasonal
+seasonal_avg <- tapply(seasonal, cycle(seasonal), mean, na.rm = TRUE)
+high_month <- which.max(seasonal_avg)
+low_month <- which.min(seasonal_avg)
+```
+
+```{r}
+month.name[high_month]
+month.name[low_month]
+```
+
+The time series is additive and has high values in August and low values in January. August could be explained by summer job losses as people go back to school and construction slows down. January could be explained by the holiday season and temporary jobs. 
+
+```{r}
+seasadj_nj <- seasadj(decomp_nj)
+plot(ts_nj, main = 'Actuals vs Seasonally Adjusted', ylab = 'Unemployment Rate(%)')
+lines(seasadj_nj, col = 'red')
+```
+
+Seasonality does not affect the time series that much as shown by the lack of fluctuations.
+
+# Naïve Method.  
+Output. 
+Perform Residual Analysis for this technique.  
+Do a plot of residuals. What does the plot indicate?  
+Do a Histogram plot of residuals. What does the plot indicate?  
+Do a plot of fitted values vs. residuals. What does the plot indicate?  
+Do a plot of actual values vs. residuals. What does the plot indicate?  
+Do an ACF plot of the residuals? What does this plot indicate?  
+Print the five measures of accuracy for this forecasting technique. 
+Forecast
+Time series value for next year. Show table and plot. 
+Summarize this forecasting technique. 
+How good is the accuracy?  
+What does it predict the time series value will be in one year?  
+Other observation. 
+
+```{r}
+naive_nj <- naive(ts_nj)
+res_naive_nj <- residuals(naive_nj)
+```
+
+```{r, echo=FALSE}
+plot(res_naive_nj, 
+     main = "Residuals from Naive Model", 
+     xlab = "Time", 
+     ylab = "Residuals", 
+     col = "#1f77b4", 
+     lwd = 2, 
+     type = "l") 
+abline(h = 0, col = "red", lwd = 2, lty = 2)  
+grid(col = "gray90", lty = "dotted")
+```
+
+The residual plot shows that the naive model captures the overall trend well, with residuals centered around zero and stable variance. However, it fails to account for the large spike around 2020 and may be missing some seasonal patterns.
+
+```{r, echo=FALSE}
+hist(res_naive_nj, 
+     main = "Residuals from Naive Model", 
+     xlab = "Residuals", 
+     ylab = "Frequency", 
+     col = "lightgray", 
+     border = "black",  
+     breaks = 30)        
+curve(dnorm(x, mean = mean(res_naive_nj, na.rm = TRUE), sd = sd(res_naive_nj, na.rm = TRUE)) * length(res_naive_nj) * diff(range(res_naive_nj)) / 30, 
+      col = "red", 
+      lwd = 2, 
+      add = TRUE)
+```
+
+This histogram shows that the residuals from the naive model are centered around zero, indicating that the model is generally unbiased. However, the residuals are highly skewed and have fat tails, which the naive model fails to capture.
+
+```{r, echo=FALSE}
+fit_naive_nj <- fitted(naive_nj)
+plot(as.numeric(fit_naive_nj), as.numeric(res_naive_nj),
+     main = "Fitted vs Residuals (Naive Model)",
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+
+The naive model captures the general trend well, but the presence of outliers and some spread at higher values suggests that it might benefit from a more sophisticated model that accounts for sudden economic shocks and seasonality.
+
+```{r, echo=FALSE}
+plot(as.numeric(fit_naive_nj), as.numeric(ts_nj),
+     main = "Fitted vs Actuals (Naive Model)",
+     xlab = "Fitted Values",
+     ylab = "Actual Values",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+
+This plot shows a strong positive correlation between the fitted and actual values, indicating that the naive model is capturing the general trend well. However, the spread increases at higher values, and the outliers at the top suggest that the model struggles with large, sudden changes.
+
+```{r, echo=FALSE}
+Acf(res_naive_nj, main = 'Acf of Residuals for Naive')
+```
+
+This ACF plot of residuals shows some significant autocorrelation at certain lags, particularly around lag 12 and 24, which suggests that the naive model is not fully capturing the seasonality in the data. The spikes outside the blue confidence bands indicate that the residuals are not completely random.
+
+```{r, echo=FALSE}
+plot(naive_nj)
+naive_nj
+accuracy(naive_nj)
+```
+
+This forecasting model shows low error and reasonable accuracy (~6% MAPE), but the slight positive autocorrelation (ACF1) and underestimation (negative MPE) suggest room for improvement.
+
+# Simple Moving Averages
+Plot the graph for the time series.  
+Show the Simple Moving average of order three on the plot above in Red.   
+Show the Simple Moving average of order six on the plot above in Blue.   
+Show the Simple Moving average of order nine on the plot above in Green. 
+(Bonus) show the forecast for the next 12 months using one of the simple average orders that you feel works best for time series
+What are your observations of the plot as the moving average order goes up?   
+```{r, echo=FALSE}
+plot(ts_nj, main = 'NJ Unemployment Rate with Moving Averages', 
+     xlab = 'Year', ylab= 'Unemployment Rate(%)',col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)
+lines(ma(ts_nj, order = 3), col = 'red')
+lines(ma(ts_nj, order = 6), col = 'blue')
+lines(ma(ts_nj, order = 9), col = 'green')
+```
+
+Red is order = 3. Blue is order = 6. Green is order = 9. As the order goes up, the lines get smoother and gets less sensitive to short-term noise.
+
+```{r, echo=FALSE}
+ma_nj9 <- ma(ts_nj, order = 9) 
+ma_nj9 <- na.omit(ma_nj9)
+ma_forecast_nj <- forecast(ma_nj9)
+plot(ma_forecast_nj)
+```
+
+# Simple Smoothing
+Perform a simple smoothing forecast for the next 12 months for the time series.   
+What is the value of alpha? What does that value signify?   
+What is the value of the initial state?   
+What is the value of sigma? What does the sigma signify?   
+Perform Residual Analysis for this technique.   
+Do a plot of residuals. What does the plot indicate?   
+Do a Histogram plot of residuals. What does the plot indicate?   
+Do a plot of fitted values vs. residuals. What does the plot indicate?   
+Do a plot of actual values vs. residuals. What does the plot indicate?   
+Do an ACF plot of the residuals? What does this plot indicate?   
+Print the five measures of accuracy for this forecasting technique.  
+Forecast.  
+Time series value for next year. Show table and plot.  
+Summarize this forecasting technique.  
+How good is the accuracy?   
+What does it predict the time series value will be in one year?   
+Other observation.  
+
+```{r}
+ss_nj <- ets(ts_nj)
+ss_forecast <- forecast(ss_nj)
+coef(ss_nj)
+sqrt(ss_nj$sigma2)
+```
+
+Alpha indicates the model is highly senstive to short term changes. The initial state is the initial value of the time series after smoothing. Sigma indicates a good fit without excessive noise.
+
+```{r, echo=FALSE}
+res_ss_nj <- residuals(ss_forecast)
+fit_ss_nj <- fitted(ss_forecast)
+plot(res_ss_nj, 
+     main = "Residuals from Simple Smoothing", 
+     xlab = "Time", 
+     ylab = "Residuals", 
+     col = "#1f77b4", 
+     lwd = 2, 
+     type = "l") 
+abline(h = 0, col = "red", lwd = 2, lty = 2)  
+grid(col = "gray90", lty = "dotted")
+```
+
+Same as Naive model.
+
+```{r, echo=FALSE}
+hist(res_ss_nj, 
+     main = "Residuals from Simple Smoothing", 
+     xlab = "Residuals", 
+     ylab = "Frequency", 
+     col = "lightgray", 
+     border = "black",  
+     breaks = 30)        
+curve(dnorm(x, mean = mean(res_naive_nj, na.rm = TRUE), sd = sd(res_naive_nj, na.rm = TRUE)) * length(res_ss_nj) * diff(range(res_ss_nj)) / 30, 
+      col = "red", 
+      lwd = 2, 
+      add = TRUE)
+```
+
+Same as Naive Model
+
+```{r, echo=FALSE}
+plot(as.numeric(fit_ss_nj), as.numeric(res_ss_nj),
+     main = "Fitted vs Residuals (Simple Smoothing)",
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+
+Plot shows a tighter spread and points closer to zero, indicating that model is making more accurate predictions and has less bias. Its leaving out more noise than the naive model, ultimately making it a better choice. 
+
+```{r, echo=FALSE}
+plot(as.numeric(fit_ss_nj), as.numeric(ts_nj),
+     main = "Fitted vs Actuals (Simple Smoothing)",
+     xlab = "Fitted Values",
+     ylab = "Actual Values",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+
+Also shows a tighter spread and points closer to zero while keeping a steady angle, indicating the model is closely tracking the actual pattern. 
+
+```{r, echo=FALSE}
+Acf(res_ss_nj, main = 'Acf of Residuals for Simple Smoothing')
+```
+
+The simple smoothing model’s residuals are much less autocorrelated than the naive model’s, confirming that it’s doing a better job at explaining the data’s structure. The minor spike at lag 5 might suggest some short-term seasonality, but overall, this is a strong and well-fitted model.
+
+```{r, echo=FALSE}
+plot(ss_forecast)
+ss_forecast
+accuracy(ss_forecast)
+```
+
+The simple smoothing model is a clear improvement over the naive model, with lower error rates and more balanced predictions. The lower MAPE (3.5%) confirms that the model is handling the underlying structure well
+
+# Holt-Winters
+Perform Holt-Winters forecast for the next 12 months for the time series.   
+What is the value of alpha? What does that value signify?   
+What is the value of beta? What does that value signify?   
+What is the value of gamma? What does that value signify?   
+What is the value of initial states for the level, trend, and seasonality? What do these values signify?   
+What is the value of sigma? What does the sigma signify?   
+Perform Residual Analysis for this technique.   
+Do a plot of residuals. What does the plot indicate?   
+Do a Histogram plot of residuals. What does the plot indicate?   
+Do a plot of fitted values vs. residuals. What does the plot indicate?   
+Do a plot of actual values vs. residuals. What does the plot indicate?   
+Do an ACF plot of the residuals? What does this plot indicate?   
+Print the five measures of accuracy for this forecasting technique.  
+Forecast.  
+Time series value for next year. Show table and plot.  
+Summarize this forecasting technique.  
+How good is the accuracy?   
+What does it predict the time series value will be in one year?   
+Other observation.  
+
+```{r}
+hw_nj <- HoltWinters(ts_nj)
+hw_forecast_nj <- forecast(hw_nj, 12)
+hw_nj$alpha
+hw_nj$beta
+hw_nj$gamma
+hw_nj$coefficients
+sqrt(hw_nj$SSE/length(ts_nj))
+```
+
+Alpha signifies that the model responds quickly to short term changes. Beta signifies the trend is stable and adjusts very slowly over time, giving less weight to recent changes. Gamma signifies the model gives full weight to the most recent seasonal effect, completely adjusting the seasonality each period.The initial level and trend are reasonable starting values based on the data. The seasonal pattern reflects typical labor market trends, with high unemployment early in the year and low unemployment toward the end of the year. Sigma is neither very close to zero nor excessively large, suggesting that the model is striking a good balance between accuracy and flexibility. All in all the Holt-Winters model appears well-calibrated for capturing both the trend and seasonality for the unemployment rate. 
+
+```{r, echo=FALSE}
+res_hw_nj <- residuals(hw_forecast_nj)
+fit_hw_nj <- fitted(hw_forecast_nj)
+plot(res_hw_nj, 
+     main = "Residuals from Holt Winters", 
+     xlab = "Time", 
+     ylab = "Residuals", 
+     col = "#1f77b4", 
+     lwd = 2, 
+     type = "l") 
+abline(h = 0, col = "red", lwd = 2, lty = 2)  
+grid(col = "gray90", lty = "dotted")
+```
+
+The residuals are centered around zero, have a fairly constant variance, and shows no randomness. There is the spike from 2020 with a wider variance after that, showing an adjustment to that shock.
+
+```{r, echo=FALSE}
+hist(res_hw_nj, 
+     main = "Residuals from Holt Winters", 
+     xlab = "Residuals", 
+     ylab = "Frequency", 
+     col = "lightgray", 
+     border = "black",  
+     breaks = 30)        
+curve(dnorm(x, mean = mean(res_naive_nj, na.rm = TRUE), sd = sd(res_naive_nj, na.rm = TRUE)) * length(res_hw_nj) * diff(range(res_hw_nj)) / 30, 
+      col = "red", 
+      lwd = 2, 
+      add = TRUE)
+```
+
+The tightness of values around 0 and the high symmetry signify the model is accurate. However, it does struggle with with outliers and large shocks, most likely from 2020.
+
+```{r, echo=FALSE}
+plot(as.numeric(fit_hw_nj), as.numeric(res_hw_nj),
+     main = "Fitted vs Residuals (Holt Winters)",
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+
+The tightness of points around 0 and a fairly constant variance indicates that the model captures most of the trend and seasonality accurately and isn’t missing any structure. However, again, the outliers are present.
+
+```{r, echo=FALSE}
+plot(as.numeric(fit_hw_nj), as.numeric(ts_nj),
+     main = "Fitted vs Actuals (Holt Winters)",
+     xlab = "Fitted Values",
+     ylab = "Actual Values",
+     col = "#1f77b4",  
+     pch = 16,         
+     cex = 0.7)         
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+
+```
+
+A strong linear relationship and the tightly packed points indicate suggesting that the model is predicting well. However, again, the outliers are present.
+
+```{r, echo=FALSE}
+Acf(res_hw_nj, main = 'Acf of Residuals for Holt Winters')
+```
+
+The ACF plot shows that most lags are within the confidence bands, indicating that the residuals are close to white noise and capturing the trend and seasonality well. The small negative spike at lag 5 is minor and suggests no significant autocorrelation issues.
+
+```{r, echo=FALSE}
+plot(hw_forecast_nj)
+hw_forecast_nj
+accuracy(hw_forecast_nj)
+```
+
+The Holt Winters Model is a step down from the Simple Smoothing model, proven by the higher MAPE(~3.9%) and ACF1(~0.26). It sill handles the structure well and predicts accurately but not as well as the previous model.
+
+# Accuracy Summary
+Show a table of all the forecast methods above with their accuracy measures.   
+Separately define each forecast method and why it is useful. Show the best and worst forecast method for each of the accuracy measures.   
+
+```{r}
+# Naive Model
+naive_nj
+
+# Moving Averages
+ma_forecast_nj
+
+# Simple Smoothing Model
+ss_forecast
+
+# Holt Winters Model
+hw_forecast_nj
+```
+
+Decomposition: Breaks data into trend, seasonality, and random noise to better understand patterns.  
+ 
+ Naive: Assumes that the next observation is equal to the last observed value.
+It’s useful as a baseline model to compare against more sophisticated models and works well for data with no trend or seasonality.  
+
+Moving Averages: The moving average model forecasts the next value as the average of the last numbers of observations. Useful for smoothing short-term fluctuations and identifying underlying trends and also works well when there’s no clear trend but some seasonality.
+
+Simple Smoothing: Assigns exponentially decreasing weights to past observations.
+Is best for data with no trend or seasonality and useful for capturing random fluctuations.
+Also helps reduce noise and stabilize forecast
+
+Holt Winters: Handles trend and seasonality by adding smoothing terms for level, trend, and seasonality. Works well for data with clear seasonality and trends and is suitable for complex patterns and long-term forecasting.
+
+```{r, echo=FALSE}
+accuracy_table <- rbind(
+  "Naive Model" = accuracy(naive_nj)[1, ],
+  "Moving Average" = accuracy(ma_forecast_nj)[1, ],
+  "Simple Smoothing" = accuracy(ss_forecast)[1, ],
+  "Holt-Winters" = accuracy(hw_forecast_nj)[1, ]
+)
+accuracy_table <- round(accuracy_table, 4)
+print(accuracy_table)
+```
+
+The best forecast method in this case is the moving average with an order of 9 and the worst forecast method is the naive method as it really is only a baseline method.
+
+
+# Conclusion   
+The NJ unemployment rate shows a clear cyclical pattern with periods of rising and falling unemployment over time. Major spikes are observed during economic recessions and the COVID-19 pandemic in 2020, which caused a sharp but short-lived increase. The underlying trend suggests that the unemployment rate tends to stabilize after each major shock but remains sensitive to broader economic conditions.   
+
+Over the next year I expect the time series value to remain stable with some fluctuations due to seasonality but nothing major like Covid-19 in 2020. However, the year after that I expect the overall time series value to decrease slightly and stabilize at a better, less disruptive level.   
+
+Ranking:    
+
+1)  The best forecasting method in this analysis was the Moving Average model by a wide margin. It has, by far, the lowest RMSE, MAE, MAPE, and MASE showcasing its accuracy in the short term.   
+
+2)  The next best was the Simple Smoothing Model with the second lowest MAPE, MASE, RMSE and MAE, showcasing its accuracy and relative performance, albeit still worse than the moving averages. It has also had the second best Acf1 showing its residuals are not that correlated.   
+
+3)  The third best is the Holt-Winters model as it had the third lowest MAPE, MASE, RMSE and MAE. The model did not performs as well as more simpler ones. It is expected as this type of model struggles when variance increases over time and we can see that with the residual plot. Possibly adjusting the smoothing parameters and removing the outliers can increase the model's responsiveness and accuracy.   
+
+4)  The worst model was the Naive model as it had the worst MAPE, MASE, RMSE and MAE. This is also expected as the naive model is meant to be a baseline for the other models. However, it is surprising that is has the best Acf1, which usually reflects that the model has captured the pattern in the data, something you wouldn’t expect from a Naive Model.
+
+
+
+
+
+
+Follow Me!   
+Instagram: https://www.instagram.com/matt_colao/    
+LinkedIn: https://www.linkedin.com/in/matthewcolao/   
+Tableau Public: https://public.tableau.com/app/profile/matthew.colao4612/vizzes   

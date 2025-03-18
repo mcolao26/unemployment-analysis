@@ -17,11 +17,7 @@ tryCatch(
     add(repo, ".")  # Stage ALL files
     commit(repo, message = paste("Automated report update:", Sys.Date()))
     
-    # Push via SSH
-    system("eval \"$(ssh-agent -s)\"")
-    system("ssh-add ~/.ssh/id_ed25519")
-    push(repo, credentials = cred_user_pass("", ""))  # Empty strings for SSH
-    
+   
     # Log success
     cat(paste(Sys.time(), "Success\n"), file = "automation.log", append = TRUE)
   },
@@ -29,3 +25,6 @@ tryCatch(
     cat(paste(Sys.time(), "ERROR:", e$message, "\n"), file = "automation.log", append = TRUE)
   }
 )
+system("git add reports/NJ_Unemployment_$(date +%Y-%m-%d).html")
+system("git commit -m 'Automated update for unemployment report on $(date +%Y-%m-%d)'")
+system("git push origin main")

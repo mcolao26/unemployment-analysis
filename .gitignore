@@ -2,7 +2,7 @@
 
 # R-specific files
 .Renviron          # Contains API keys/tokens (sensitive!)
-.RData             # R workspace files
+*.RData             # R workspace files
 .Rhistory          # R command history
 .Rproj.user        # RStudio project files
 
